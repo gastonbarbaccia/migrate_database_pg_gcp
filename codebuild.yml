@@ -1,0 +1,41 @@
+substitutions:
+  _AR_HOSTNAME: us-east4-docker.pkg.dev
+  _AR_PROJECT_ID: devcode-457115
+  _AR_REPOSITORY: cloud-run-source-deploy
+  _DEPLOY_REGION: us-east4
+  _PLATFORM: managed
+  _SERVICE_NAME: default-name # este valor lo sobreescribe el trigger
+  _APPLICATION_NAME: migrate-database-pg
+
+steps:
+  # Build de la imagen Docker
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - '${_AR_HOSTNAME}/${_AR_PROJECT_ID}/${_AR_REPOSITORY}/{_APPLICATION_NAME}:$BRANCH_NAME-$SHORT_SHA'
+      - '.'
+
+  # Push al Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '${_AR_HOSTNAME}/${_AR_PROJECT_ID}/${_AR_REPOSITORY}/{_APPLICATION_NAME}:$BRANCH_NAME-$SHORT_SHA'
+
+  # Deploy a Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    args:
+      - 'gcloud'
+      - 'run'
+      - 'deploy'
+      - '${_SERVICE_NAME}'
+      - '--image=${_AR_HOSTNAME}/${_AR_PROJECT_ID}/${_AR_REPOSITORY}/{_APPLICATION_NAME}:$BRANCH_NAME-$SHORT_SHA'
+      - '--region=${_DEPLOY_REGION}'
+      - '--platform=${_PLATFORM}'
+      - '--allow-unauthenticated'
+
+images:
+  - '${_AR_HOSTNAME}/${_AR_PROJECT_ID}/${_AR_REPOSITORY}/{_APPLICATION_NAME}:$BRANCH_NAME-$SHORT_SHA'
+
+options:
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
