@@ -13,14 +13,14 @@ steps:
     args:
       - 'build'
       - '-t'
-      - '${_AR_HOSTNAME}/${_AR_PROJECT_ID}/${_AR_REPOSITORY}/{_APPLICATION_NAME}:$BRANCH_NAME-$SHORT_SHA'
+      - '${_AR_HOSTNAME}/${_AR_PROJECT_ID}/${_AR_REPOSITORY}/${_APPLICATION_NAME}:$BRANCH_NAME-$SHORT_SHA'
       - '.'
 
   # Push al Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - '${_AR_HOSTNAME}/${_AR_PROJECT_ID}/${_AR_REPOSITORY}/{_APPLICATION_NAME}:$BRANCH_NAME-$SHORT_SHA'
+      - '${_AR_HOSTNAME}/${_AR_PROJECT_ID}/${_AR_REPOSITORY}/${_APPLICATION_NAME}:$BRANCH_NAME-$SHORT_SHA'
 
   # Deploy a Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -29,13 +29,13 @@ steps:
       - 'run'
       - 'deploy'
       - '${_SERVICE_NAME}'
-      - '--image=${_AR_HOSTNAME}/${_AR_PROJECT_ID}/${_AR_REPOSITORY}/{_APPLICATION_NAME}:$BRANCH_NAME-$SHORT_SHA'
+      - '--image=${_AR_HOSTNAME}/${_AR_PROJECT_ID}/${_AR_REPOSITORY}/${_APPLICATION_NAME}:$BRANCH_NAME-$SHORT_SHA'
       - '--region=${_DEPLOY_REGION}'
       - '--platform=${_PLATFORM}'
       - '--allow-unauthenticated'
 
 images:
-  - '${_AR_HOSTNAME}/${_AR_PROJECT_ID}/${_AR_REPOSITORY}/{_APPLICATION_NAME}:$BRANCH_NAME-$SHORT_SHA'
+  - '${_AR_HOSTNAME}/${_AR_PROJECT_ID}/${_AR_REPOSITORY}/${_APPLICATION_NAME}:$BRANCH_NAME-$SHORT_SHA'
 
 options:
   defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
