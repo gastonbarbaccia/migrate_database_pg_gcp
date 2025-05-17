@@ -1,60 +1,73 @@
 from flask import Flask, request, jsonify
 import subprocess
+import tempfile
 import os
 
 app = Flask(__name__)
 
-DUMP_FILE = 'full_dump.dump'
+def validate_fields(data, prefix):
+    required = ['host', 'port', 'user', 'password', 'database']
+    if not all(key in data for key in required):
+        return False, f"Missing fields in '{prefix}'. Required: {required}"
+    return True, ""
 
-def dump_full(source):
-    cmd = [
-        'pg_dump',
-        '-h', source['host'],
-        '-p', source['port'],
-        '-U', source['user'],
-        '-Fc',
-        '-f', DUMP_FILE,
-        source['dbname']
-    ]
+@app.route('/migrate', methods=['POST'])
+def migrate_db():
+    req_data = request.json
+
+    if 'source' not in req_data or 'target' not in req_data:
+        return jsonify({'error': "Both 'source' and 'target' sections are required"}), 400
+
+    source = req_data['source']
+    target = req_data['target']
+
+    # Validar campos
+    valid_source, msg = validate_fields(source, 'source')
+    if not valid_source:
+        return jsonify({'error': msg}), 400
+    valid_target, msg = validate_fields(target, 'target')
+    if not valid_target:
+        return jsonify({'error': msg}), 400
+
+    # Crear archivo temporal para el dump
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".sql") as tmp_file:
+        dump_file = tmp_file.name
+
+    # Setear variables de entorno para pg_dump
     env = os.environ.copy()
     env['PGPASSWORD'] = source['password']
-    subprocess.run(cmd, env=env, check=True)
-
-def restore_full(target):
-    cmd = [
-        'pg_restore',
-        '-h', target['host'],
-        '-p', target['port'],
-        '-U', target['user'],
-        '-d', target['dbname'],
-        '--clean',
-        '--create',
-        '--verbose',
-        DUMP_FILE
-    ]
-    env = os.environ.copy()
-    env['PGPASSWORD'] = target['password']
-    subprocess.run(cmd, env=env, check=True)
-
-@app.route('/clone', methods=['POST'])
-def clone():
-    data = request.get_json()
-    source = data.get('source')
-    target = data.get('target')
-
-    if not source or not target:
-        return jsonify({"error": "Faltan parámetros 'source' o 'target'"}), 400
 
     try:
-        dump_full(source)
-        restore_full(target)
-        return jsonify({"message": "Clonación exitosa"}), 200
-    except subprocess.CalledProcessError as e:
-        return jsonify({"error": f"Falló la clonación: {str(e)}"}), 500
+        # Dump de la base source
+        subprocess.run([
+            'pg_dump',
+            '-h', source['host'],
+            '-p', str(source['port']),
+            '-U', source['user'],
+            '-d', source['database'],
+            '-f', dump_file
+        ], env=env, check=True)
 
-@app.route('/')
-def index():
-    return "Servicio de clonación listo."
+        # Setear pass del target
+        env['PGPASSWORD'] = target['password']
+
+        # Restaurar en base destino
+        subprocess.run([
+            'psql',
+            '-h', target['host'],
+            '-p', str(target['port']),
+            '-U', target['user'],
+            '-d', target['database'],
+            '-f', dump_file
+        ], env=env, check=True)
+
+        return jsonify({'message': f"Base de datos '{source['database']}' migrada exitosamente a '{target['database']}'"}), 200
+
+    except subprocess.CalledProcessError as e:
+        return jsonify({'error': 'Error ejecutando pg_dump o psql', 'details': str(e)}), 500
+    finally:
+        if os.path.exists(dump_file):
+            os.remove(dump_file)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)

@@ -1,21 +1,23 @@
-Codigo de ejemplo de postman
+{
+  "source": {
+    "host": "origen-db",
+    "port": 5432,
+    "user": "postgres",
+    "password": "origen_pass",
+    "database": "base_origen"
+  },
+  "target": {
+    "host": "destino-db",
+    "port": 5432,
+    "user": "postgres",
+    "password": destino_pass
+    "database": "base_destino"
+  }
+}
 
-curl -X POST http://localhost:8080/clone \
-  -H "Content-Type: application/json" \
-  -d '{
-    "source": {
-      "host": "source-host",
-      "port": "5432",
-      "dbname": "origen",
-      "user": "postgres",
-      "password": "source-password"
-    },
-    "target": {
-      "host": "target-host",
-      "port": "5432",
-      "dbname": "destino",
-      "user": "postgres",
-      "password": "target-password"
-    }
-  }'
 
+docker build -t flask-pg-dump .
+docker run -p 8080:8080 flask-pg-dump
+
+
+/migrate
